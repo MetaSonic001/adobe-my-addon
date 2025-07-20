@@ -11,14 +11,25 @@ interface ContentGeneratorProps {
 const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isLoading }) => {
   const [prompt, setPrompt] = useState('');
   const [content, setContent] = useState<GeneratedContent | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastClick, setLastClick] = useState(0);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    
+    const now = Date.now();
+    if (now - lastClick < 1000) return; // Debounce: 1s delay between clicks
+    setLastClick(now);
+
+    if (!prompt.trim()) {
+      setError('Please enter a prompt');
+      return;
+    }
+
+    setError(null);
     try {
       const result = await onGenerate(prompt);
       setContent(result);
     } catch (error) {
+      setError(error.message || 'Failed to generate content. Please try again.');
       console.error('Generation failed:', error);
     }
   };
@@ -32,6 +43,11 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isLoadi
 
   return (
     <div className="content-generator">
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
       <div className="form-group">
         <label>What do you want to create?</label>
         <textarea

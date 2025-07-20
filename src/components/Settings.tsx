@@ -34,12 +34,12 @@ const Settings: React.FC<SettingsProps> = ({
       {isOpen && (
         <div className="settings-panel">
           <div className="form-group">
-            <label>Gemini API Key:</label>
+            <label>Groq API Key:</label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => onApiKeyChange(e.target.value)}
-              placeholder="Enter your Gemini API key"
+              placeholder="Enter your Groq API key"
               className="input"
             />
           </div>
