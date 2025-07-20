@@ -36,21 +36,35 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
   const copyCaption = async () => {
     try {
       await navigator.clipboard.writeText(content.caption);
-      onToast('Caption copied to clipboard!', 'success');
-    } catch (error) {
-      onToast('Failed to copy caption', 'error');
+      alert('Caption copied to clipboard!');
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = content.caption;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Caption copied to clipboard!');
     }
   };
 
   const copyHashtags = async () => {
+    const hashtagText = content.hashtags.join(' ');
     try {
-      await navigator.clipboard.writeText(content.hashtags.join(' '));
-      onToast('Hashtags copied to clipboard!', 'success');
-    } catch (error) {
-      onToast('Failed to copy hashtags', 'error');
+      await navigator.clipboard.writeText(hashtagText);
+      alert('Hashtags copied to clipboard!');
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = hashtagText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Hashtags copied to clipboard!');
     }
   };
-
   const copyColor = async (color: string) => {
     try {
       await navigator.clipboard.writeText(color);
