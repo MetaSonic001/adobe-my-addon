@@ -14,11 +14,14 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
   isCreating 
 }) => {
   const [selectedLayout, setSelectedLayout] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreate = async () => {
+    setError(null);
     try {
       await onCreateDesign(selectedLayout);
-    } catch (error) {
+    } catch (error: any) {
+      setError(error.message || 'Design creation failed. Please try again.');
       console.error('Design creation failed:', error);
     }
   };
@@ -29,6 +32,11 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
 
   return (
     <div className="layout-selector">
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
       <h4><Layout size={16} /> Choose Layout:</h4>
       
       <div className="layout-options">
@@ -39,7 +47,6 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
             onClick={() => setSelectedLayout(index)}
           >
             <div className="layout-preview">
-              {/* Simple visual representation */}
               <div className={`preview-${index % 3}`}>
                 <div className="preview-element"></div>
                 <div className="preview-text"></div>

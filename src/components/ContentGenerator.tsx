@@ -16,7 +16,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isLoadi
 
   const handleGenerate = async () => {
     const now = Date.now();
-    if (now - lastClick < 1000) return; // Debounce: 1s delay between clicks
+    if (now - lastClick < 1000) return; // Debounce: 1s delay
     setLastClick(now);
 
     if (!prompt.trim()) {
@@ -28,7 +28,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isLoadi
     try {
       const result = await onGenerate(prompt);
       setContent(result);
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message || 'Failed to generate content. Please try again.');
       console.error('Generation failed:', error);
     }
