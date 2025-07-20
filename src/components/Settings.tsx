@@ -1,66 +1,77 @@
 import React, { useState } from 'react';
-import { Button } from "@swc-react/button";
-import { Settings as SettingsIcon, Save } from 'lucide-react';
+import './app.css';
 
 interface SettingsProps {
-  apiKey: string;
-  brandInfo: string;
-  onApiKeyChange: (key: string) => void;
-  onBrandInfoChange: (info: string) => void;
-  onSave: () => void;
+  onSave: (apiKey: string, googleTranslateApiKey?: string, unsplashApiKey?: string, brandInfo?: string) => void;
+  onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ 
-  apiKey, 
-  brandInfo, 
-  onApiKeyChange, 
-  onBrandInfoChange, 
-  onSave 
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Settings: React.FC<SettingsProps> = ({ onSave, onToast }) => {
+  const [apiKey, setApiKey] = useState('');
+  const [googleTranslateApiKey, setGoogleTranslateApiKey] = useState('');
+  const [unsplashApiKey, setUnsplashApiKey] = useState('');
+  const [brandInfo, setBrandInfo] = useState('');
+
+  const handleSave = () => {
+    if (!apiKey) {
+      onToast('Please enter a Groq API key.', 'error');
+      return;
+    }
+    onSave(apiKey, googleTranslateApiKey, unsplashApiKey, brandInfo);
+    onToast('Settings saved! Optional APIs will enhance features.', 'success');
+  };
 
   return (
-    <div className="settings">
-      <Button 
-        size="s" 
-        variant="secondary" 
-        onClick={() => setIsOpen(!isOpen)}
-        style={{ marginBottom: '12px' }}
-      >
-        <SettingsIcon size={16} />
-        Settings
-      </Button>
-
-      {isOpen && (
-        <div className="settings-panel">
-          <div className="form-group">
-            <label>Groq API Key:</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => onApiKeyChange(e.target.value)}
-              placeholder="Enter your Groq API key"
-              className="input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Brand Info:</label>
-            <textarea
-              value={brandInfo}
-              onChange={(e) => onBrandInfoChange(e.target.value)}
-              placeholder="Describe your brand (style, colors, target audience...)"
-              className="textarea"
-              rows={3}
-            />
-          </div>
-
-          <Button size="s" onClick={onSave}>
-            <Save size={16} />
-            Save Settings
-          </Button>
-        </div>
-      )}
+    <div className="settings-panel">
+      <div className="header">
+        <h1>CreativeSpark AI Settings</h1>
+        <p>Configure your API keys and brand details</p>
+      </div>
+      <div className="warning">
+        <strong>Warning:</strong> API keys are stored in memory for this session only. Do not share sensitive keys.
+      </div>
+      <div className="form-group">
+        <label htmlFor="apiKey">Groq API Key (Required)</label>
+        <input
+          id="apiKey"
+          className="input"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="Enter your Groq API key"
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="googleTranslateApiKey">Google Translate API Key (Optional)</label>
+        <input
+          id="googleTranslateApiKey"
+          className="input"
+          value={googleTranslateApiKey}
+          onChange={(e) => setGoogleTranslateApiKey(e.target.value)}
+          placeholder="Enter your Google Translate API key for translations"
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="unsplashApiKey">Unsplash API Key (Optional)</label>
+        <input
+          id="unsplashApiKey"
+          className="input"
+          value={unsplashApiKey}
+          onChange={(e) => setUnsplashApiKey(e.target.value)}
+          placeholder="Enter your Unsplash API key for images"
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="brandInfo">Brand Information</label>
+        <textarea
+          id="brandInfo"
+          className="textarea"
+          value={brandInfo}
+          onChange={(e) => setBrandInfo(e.target.value)}
+          placeholder="Enter brand details (e.g., name, tone, audience)"
+          rows={4}
+        />
+      </div>
+      <button className="action-button" onClick={handleSave}>Save Settings</button>
     </div>
   );
 };

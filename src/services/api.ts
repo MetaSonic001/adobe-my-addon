@@ -1,395 +1,328 @@
-import Groq from "groq-sdk";
-
 export interface GeneratedContent {
   caption: string;
   layoutSuggestions?: string[];
+  tone: string;
   cta: string;
   hashtags: string[];
-  tone: string;
-  colorPalette: string[];
   fonts: string[];
+  colorPalette: string[];
   layoutTips: string[];
-  designSuggestions: {
-    visualStyle: string;
-    elements: { type: string; description: string; placement: string }[];
-  };
-  moodBoard: { type: string; description: string; color?: string; imageUrl?: string }[];
-  trends: { hashtag: string; description: string; popularity: number }[];
-  quickFixes: { issue: string; suggestion: string; action?: string }[];
   accessibilitySuggestions: { issue: string; suggestion: string }[];
-  templateSuggestions: { name: string; description: string }[];
-  analyticsSuggestions: { platform: string; postingTime: string; tip: string }[];
-  freshIdeas: { type: string; description: string; content?: string }[];
-  exportSuggestions: { format: string; useCase: string; tip: string }[];
+  quickFixes: { issue: string; suggestion: string; action?: string }[];
+  freshIdeas: { description: string; content?: string }[];
   keywordSuggestions: { keyword: string; relevance: number; suggestion: string }[];
+  trends: { hashtag: string; description: string; popularity: number }[];
+  moodBoard: { description: string; imageUrl?: string; color?: string }[];
+  analyticsSuggestions: { platform: string; tip: string; postingTime: string }[];
+  exportSuggestions: { format: string; useCase: string; tip: string }[];
   multilingualContent: { language: string; caption: string; cta: string }[];
+  brainstormIdeas?: { idea: string; description: string }[];
 }
 
 export class GroqService {
-  private groq: Groq;
-  private maxRetries = 3;
-  private baseDelay = 1000;
-  private serpApiKey: string = 'YOUR_SERPAPI_KEY';
-  private deeplApiKey: string = 'YOUR_DEEPL_API_KEY';
-  private unsplashApiKey: string = 'YOUR_UNSPLASH_API_KEY';
+  private groqApiKey: string;
+  private googleTranslateApiKey?: string;
+  private unsplashApiKey?: string;
 
-  constructor(apiKey: string) {
-    console.warn(
-      'WARNING: Using dangerouslyAllowBrowser in a browser environment. ' +
-      'This exposes your API key. Use a proxy server for production.'
-    );
-    this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+  constructor(groqApiKey: string, googleTranslateApiKey?: string, unsplashApiKey?: string) {
+    this.groqApiKey = groqApiKey;
+    this.googleTranslateApiKey = googleTranslateApiKey;
+    this.unsplashApiKey = unsplashApiKey;
   }
 
-  private async fetchTrends(query: string): Promise<{ hashtag: string; description: string; popularity: number }[]> {
+  async generateContent(prompt: string, brandInfo: string): Promise<GeneratedContent> {
+    const groqResponse = await this.fetchGroqContent(prompt, brandInfo);
+    const trends = await this.fetchTrends(prompt);
+    const multilingualContent = this.googleTranslateApiKey
+      ? await this.fetchTranslations(groqResponse.caption, groqResponse.cta)
+      : this.getFallbackTranslations(groqResponse.caption, groqResponse.cta);
+    const moodBoard = this.unsplashApiKey ? await this.fetchMoodBoardImages(prompt) : this.getFallbackMoodBoard();
+    const brainstormIdeas = await this.fetchBrainstormIdeas(prompt, brandInfo);
+    const keywordSuggestions = await this.fetchKeywordSuggestions(prompt);
+
+    return {
+      caption: groqResponse.caption,
+      tone: groqResponse.tone,
+      cta: groqResponse.cta,
+      hashtags: groqResponse.hashtags,
+      fonts: groqResponse.fonts,
+      colorPalette: groqResponse.colorPalette,
+      layoutTips: groqResponse.layoutTips,
+      accessibilitySuggestions: groqResponse.accessibilitySuggestions,
+      quickFixes: groqResponse.quickFixes,
+      freshIdeas: groqResponse.freshIdeas,
+      analyticsSuggestions: groqResponse.analyticsSuggestions,
+      exportSuggestions: groqResponse.exportSuggestions,
+      trends,
+      multilingualContent,
+      moodBoard,
+      brainstormIdeas,
+      keywordSuggestions,
+    };
+  }
+  private async fetchGroqContent(prompt: string, brandInfo: string): Promise<GeneratedContent> {
     try {
-      const response = await fetch(`https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&api_key=${this.serpApiKey}`);
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.groqApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            { role: 'system', content: `You are a design assistant for Adobe Express. Generate content based on the prompt and brand info: ${brandInfo}` },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
       const data = await response.json();
-      return data.interest_over_time?.timeline_data?.slice(0, 3).map((item: any) => ({
-        hashtag: `#${item.query.replace(/\s+/g, '')}`,
-        description: `Trending topic: ${item.query}`,
-        popularity: Math.min(100, Math.max(0, parseInt(item.values[0].value) || 80))
-      })) || [];
+      if (!response.ok) throw new Error(data.error?.message || 'Groq API error');
+
+      const content = data.choices[0].message.content;
+      return {
+        caption: content.split('\n')[0] || 'Sample caption',
+        tone: 'Professional', // Add tone property
+        cta: content.split('\n')[1] || 'Shop Now!',
+        hashtags: ['#Design', '#AdobeExpress', '#Creative'],
+        fonts: ['Roboto', 'Montserrat'],
+        colorPalette: ['#1E40AF', '#FFFFFF', '#F59E0B'],
+        layoutTips: ['Use high contrast', 'Balance text and visuals'],
+        accessibilitySuggestions: [{ issue: 'Contrast', suggestion: 'Increase text-background contrast' }],
+        quickFixes: [
+          { issue: 'Text size', suggestion: 'Use larger fonts', action: 'applyText' },
+          { issue: 'Color contrast', suggestion: 'Adjust colors', action: 'applyColor' },
+        ],
+        freshIdeas: [
+          { description: 'Bold headline', content: 'Make it Pop!' },
+          { description: 'Minimalist layout', content: 'Clean and simple design' },
+        ],
+        keywordSuggestions: [
+          { keyword: 'design', relevance: 90, suggestion: 'Use for SEO' },
+          { keyword: 'creative', relevance: 85, suggestion: 'Boost engagement' },
+        ],
+        trends: [
+          { hashtag: '#Fallback', description: 'Default trend', popularity: 50 },
+        ],
+        moodBoard: [
+          { description: 'Placeholder image', imageUrl: 'https://via.placeholder.com/100', color: '#f3f4f6' },
+        ],
+        analyticsSuggestions: [
+          { platform: 'Instagram', tip: 'Post with vibrant colors', postingTime: '6 PM' },
+        ],
+        exportSuggestions: [
+          { format: 'PNG', useCase: 'Social Media', tip: 'High resolution' },
+        ],
+        multilingualContent: [
+          { language: 'English', caption: content.split('\n')[0] || 'Sample caption', cta: content.split('\n')[1] || 'Shop Now!' },
+        ],
+        brainstormIdeas: [
+          { idea: 'Creative Concept', description: `Inspired by ${prompt}` },
+        ],
+      };
     } catch (error) {
-      console.error('SerpApi error:', error);
+      console.error('Groq API error:', error);
+      return {
+        caption: 'Sample caption',
+        tone: 'Professional', // Add tone property for fallback
+        cta: 'Shop Now!',
+        hashtags: ['#Design', '#AdobeExpress', '#Creative'],
+        fonts: ['Roboto', 'Montserrat'],
+        colorPalette: ['#1E40AF', '#FFFFFF', '#F59E0B'],
+        layoutTips: ['Use high contrast', 'Balance text and visuals'],
+        accessibilitySuggestions: [{ issue: 'Contrast', suggestion: 'Increase text-background contrast' }],
+        quickFixes: [
+          { issue: 'Text size', suggestion: 'Use larger fonts', action: 'applyText' },
+          { issue: 'Color contrast', suggestion: 'Adjust colors', action: 'applyColor' },
+        ],
+        freshIdeas: [
+          { description: 'Bold headline', content: 'Make it Pop!' },
+          { description: 'Minimalist layout', content: 'Clean and simple design' },
+        ],
+        keywordSuggestions: [
+          { keyword: 'design', relevance: 90, suggestion: 'Use for SEO' },
+          { keyword: 'creative', relevance: 85, suggestion: 'Boost engagement' },
+        ],
+        trends: [
+          { hashtag: '#Fallback', description: 'Default trend', popularity: 50 },
+        ],
+        moodBoard: [
+          { description: 'Placeholder image', imageUrl: 'https://via.placeholder.com/100', color: '#f3f4f6' },
+        ],
+        analyticsSuggestions: [
+          { platform: 'Instagram', tip: 'Post with vibrant colors', postingTime: '6 PM' },
+        ],
+        exportSuggestions: [
+          { format: 'PNG', useCase: 'Social Media', tip: 'High resolution' },
+        ],
+        multilingualContent: [
+          { language: 'English', caption: 'Sample caption', cta: 'Shop Now!' },
+        ],
+        brainstormIdeas: [
+          { idea: 'Creative Concept', description: `Inspired by ${prompt}` },
+        ],
+      };
+    }
+  }
+
+  private async fetchBrainstormIdeas(prompt: string, brandInfo: string): Promise<GeneratedContent['brainstormIdeas']> {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.groqApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            { role: 'system', content: `You are a brainstorming assistant for Adobe Express. Generate creative ideas based on the prompt and brand info: ${brandInfo}` },
+            { role: 'user', content: `Generate 3 creative design ideas for: ${prompt}` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || 'Groq API error');
+
+      const content = data.choices[0].message.content.split('\n').filter((line: string) => line.trim());
+      return content.map((line: string, i: number) => ({
+        idea: `Idea ${i + 1}`,
+        description: line || `Creative concept for ${prompt}`,
+      })).slice(0, 3);
+    } catch (error) {
+      console.error('Groq Brainstorm API error:', error);
       return [
-        { hashtag: '#SocialMedia', description: 'Trending for engagement', popularity: 80 },
-        { hashtag: '#Brand', description: 'Popular for promotions', popularity: 70 },
-        { hashtag: '#Creative', description: 'Rising in design', popularity: 60 }
+        { idea: 'Creative Concept', description: `Inspired by ${prompt}` },
       ];
     }
   }
 
-  private async fetchTranslation(text: string, targetLang: string): Promise<string> {
+  private async fetchKeywordSuggestions(prompt: string): Promise<GeneratedContent['keywordSuggestions']> {
     try {
-      const response = await fetch('https://api-free.deepl.com/v2/translate', {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Authorization': `DeepL-Auth-Key ${this.deeplApiKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `text=${encodeURIComponent(text)}&target_lang=${targetLang}`
+        headers: {
+          'Authorization': `Bearer ${this.groqApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            { role: 'system', content: 'You are an SEO expert for Adobe Express. Generate 5 SEO keyword suggestions based on the prompt.' },
+            { role: 'user', content: `Generate SEO keywords for: ${prompt}` },
+          ],
+        }),
       });
       const data = await response.json();
-      return data.translations[0].text;
+      if (!response.ok) throw new Error(data.error?.message || 'Groq API error');
+
+      const content = data.choices[0].message.content.split('\n').filter((line: string) => line.trim());
+      return content.map((line: string, i: number) => ({
+        keyword: line.split(':')[0] || `keyword${i + 1}`,
+        relevance: 80 + Math.floor(Math.random() * 20),
+        suggestion: line.split(':')[1] || `Use for SEO optimization`,
+      })).slice(0, 5);
     } catch (error) {
-      console.error('DeepL error:', error);
-      return text;
+      console.error('Groq Keyword API error:', error);
+      return [
+        { keyword: 'design', relevance: 90, suggestion: 'Use for SEO' },
+        { keyword: 'creative', relevance: 85, suggestion: 'Boost engagement' },
+      ];
     }
   }
 
-  private async fetchUnsplashImages(query: string): Promise<{ description: string; imageUrl: string }[]> {
+  private async fetchTrends(prompt: string): Promise<GeneratedContent['trends']> {
     try {
-      const response = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=3&client_id=${this.unsplashApiKey}`);
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.groqApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            { role: 'system', content: 'You are a social media trends analyst for Adobe Express. Generate 3 trending hashtags based on the prompt.' },
+            { role: 'user', content: `Generate trending hashtags for: ${prompt}` },
+          ],
+        }),
+      });
       const data = await response.json();
-      return data.results.map((item: any) => ({
-        description: item.alt_description || 'Inspirational image',
-        imageUrl: item.urls.small
+      if (!response.ok) throw new Error(data.error?.message || 'Groq API error');
+
+      const content = data.choices[0].message.content.split('\n').filter((line: string) => line.trim());
+      return content.map((line: string, i: number) => ({
+        hashtag: line.split(':')[0] || `#Trend${i + 1}`,
+        description: line.split(':')[1] || 'Trending topic',
+        popularity: 80 + Math.floor(Math.random() * 20),
+      })).slice(0, 3);
+    } catch (error) {
+      console.error('Groq Trends API error:', error);
+      return [
+        { hashtag: '#Fallback', description: 'Default trend', popularity: 50 },
+      ];
+    }
+  }
+
+  private async fetchTranslations(caption: string, cta: string): Promise<GeneratedContent['multilingualContent']> {
+    try {
+      const languages = ['es', 'fr', 'de'];
+      const translations = await Promise.all(
+        languages.map(async lang => {
+          const response = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${this.googleTranslateApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              q: [caption, cta],
+              target: lang,
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error('Google Translate API error');
+          return {
+            language: lang === 'es' ? 'Spanish' : lang === 'fr' ? 'French' : 'German',
+            caption: data.data.translations[0].translatedText,
+            cta: data.data.translations[1].translatedText,
+          };
+        })
+      );
+      return [
+        { language: 'English', caption, cta },
+        ...translations,
+      ];
+    } catch (error) {
+      console.error('Google Translate API error:', error);
+      return [
+        { language: 'English', caption, cta },
+      ];
+    }
+  }
+
+  private async fetchMoodBoardImages(prompt: string): Promise<GeneratedContent['moodBoard']> {
+    try {
+      const response = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(prompt)}&client_id=${this.unsplashApiKey}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error('Unsplash API error');
+      return data.results.slice(0, 3).map((img: any) => ({
+        description: img.alt_description || 'Mood image',
+        imageUrl: img.urls.small,
+        color: img.color || '#f3f4f6',
       }));
     } catch (error) {
-      console.error('Unsplash error:', error);
-      return [];
+      console.error('Unsplash API error:', error);
+      return this.getFallbackMoodBoard();
     }
   }
 
-  private extractJSONFromResponse(content: string): string {
-    let cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
-    const jsonStart = cleanContent.indexOf('{');
-    const jsonEnd = cleanContent.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-      cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
-    }
-    return cleanContent;
+  private getFallbackMoodBoard(): GeneratedContent['moodBoard'] {
+    return [
+      { description: 'Placeholder image', imageUrl: 'https://via.placeholder.com/100', color: '#f3f4f6' },
+    ];
   }
 
-  private validateGeneratedContent(content: any, trends: any[], images: any[]): GeneratedContent {
-    const validated: GeneratedContent = {
-      caption: content.caption || "Engage your audience now!",
-      cta: content.cta || "Shop Now!",
-      hashtags: Array.isArray(content.hashtags) ? content.hashtags : ["#content", "#social"],
-      tone: content.tone || "professional",
-      colorPalette: Array.isArray(content.colorPalette) ? content.colorPalette : ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6"],
-      fonts: Array.isArray(content.fonts) ? content.fonts : ["Montserrat", "Lora", "Roboto"],
-      layoutTips: Array.isArray(content.layoutTips) ? content.layoutTips : [
-        "Center focal text for impact",
-        "Add white space for clarity",
-        "Use bold typography for emphasis"
-      ],
-      designSuggestions: content.designSuggestions || {
-        visualStyle: "modern",
-        elements: [
-          { type: "text", description: "Bold headline", placement: "center" },
-          { type: "shape", description: "Decorative circle", placement: "top-right" },
-          { type: "icon", description: "Brand icon", placement: "bottom-left" }
-        ]
-      },
-      moodBoard: Array.isArray(content.moodBoard) ? content.moodBoard : [
-        { type: "color", description: "Primary color", color: "#3B82F6" },
-        { type: "color", description: "Accent color", color: "#EF4444" },
-        ...images.map(img => ({ type: "image", description: img.description, imageUrl: img.imageUrl }))
-      ],
-      trends: trends.length > 0 ? trends : [
-        { hashtag: "#SocialMedia", description: "Trending for engagement", popularity: 80 },
-        { hashtag: "#Brand", description: "Popular for promotions", popularity: 70 }
-      ],
-      quickFixes: Array.isArray(content.quickFixes) ? content.quickFixes : [
-        { issue: "Cluttered layout", suggestion: "Remove 2-3 elements", action: "applyLayout" },
-        { issue: "Low contrast", suggestion: "Use darker text", action: "applyColor" }
-      ],
-      accessibilitySuggestions: Array.isArray(content.accessibilitySuggestions) ? content.accessibilitySuggestions : [
-        { issue: "Low contrast", suggestion: "Ensure text-background contrast meets WCAG 4.5:1" },
-        { issue: "Small font", suggestion: "Use font size ≥14px for readability" }
-      ],
-      templateSuggestions: Array.isArray(content.templateSuggestions) ? content.templateSuggestions : [
-        { name: "Bold Promo", description: "Vibrant layout for ads" },
-        { name: "Minimal Flyer", description: "Clean design for events" }
-      ],
-      analyticsSuggestions: Array.isArray(content.analyticsSuggestions) ? content.analyticsSuggestions : [
-        { platform: "Instagram", postingTime: "6 PM", tip: "Post in evening for max engagement" },
-        { platform: "Twitter", postingTime: "12 PM", tip: "Tweet at noon for visibility" }
-      ],
-      freshIdeas: Array.isArray(content.freshIdeas) ? content.freshIdeas : [
-        { type: "text", description: "Headline", content: "Welcome to our brand!" },
-        { type: "shape", description: "Background shape" }
-      ],
-      exportSuggestions: Array.isArray(content.exportSuggestions) ? content.exportSuggestions : [
-        { format: "PNG", useCase: "Social Media", tip: "Use PNG for transparent backgrounds" },
-        { format: "PDF", useCase: "Print", tip: "Use PDF for high-quality prints" }
-      ],
-      keywordSuggestions: Array.isArray(content.keywordSuggestions) ? content.keywordSuggestions : [
-        { keyword: "brand", relevance: 90, suggestion: "Use in headline for SEO" },
-        { keyword: "creative", relevance: 80, suggestion: "Add to caption for engagement" }
-      ],
-      multilingualContent: Array.isArray(content.multilingualContent) ? content.multilingualContent : [
-        { language: "English", caption: "Engage your audience!", cta: "Shop Now!" },
-        { language: "Spanish", caption: "¡Conecta con tu audiencia!", cta: "¡Compra ahora!" },
-        { language: "French", caption: "Engagez votre public !", cta: "Achetez maintenant !" }
-      ]
-    };
-
-    validated.hashtags = validated.hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`);
-    validated.colorPalette = validated.colorPalette.map(color => 
-      color.match(/^#[0-9A-Fa-f]{6}$/) ? color : "#3B82F6"
-    );
-
-    return validated;
-  }
-
-  async generateContent(prompt: string, brandInfo?: string): Promise<GeneratedContent> {
-    const systemPrompt = `You are an expert content creator, design consultant, and marketing specialist. Respond ONLY with valid JSON, no additional text.
-
-Generate social media content for Adobe Express with:
-- caption: Catchy caption (max 150 characters)
-- cta: Call-to-action phrase (max 50 characters)
-- hashtags: 5-8 relevant hashtags (include #)
-- tone: One word (fun/elegant/bold/professional/friendly)
-- colorPalette: 5 hex color codes (#RRGGBB)
-- fonts: 3 font names
-- layoutTips: 3 layout improvement tips
-- designSuggestions: Object with:
-  - visualStyle: One word (modern/minimal/vibrant/elegant)
-  - elements: 3 objects (type: text/shape/icon, description, placement: top-left/top-right/center/bottom-left/bottom-right)
-- moodBoard: 3 objects (type: color/icon/image, description, color for colors, imageUrl for images)
-- trends: 3 objects (hashtag, description, popularity: 0-100)
-- quickFixes: 3 objects (issue, suggestion, action: applyLayout/applyColor/applyText)
-- accessibilitySuggestions: 2 objects (issue, suggestion for WCAG compliance)
-- templateSuggestions: 2 objects (name, description)
-- analyticsSuggestions: 2 objects (platform, postingTime, tip)
-- freshIdeas: 2 objects (type: text/shape/icon, description, content for text)
-- exportSuggestions: 2 objects (format, useCase, tip)
-- keywordSuggestions: 3 objects (keyword, relevance: 0-100, suggestion)
-- multilingualContent: 3 objects (language: English/Spanish/French/Hindi, caption, cta)
-
-Brand context: ${brandInfo || 'General brand'}
-
-Example:
-{
-  "caption": "Boost your brand!",
-  "cta": "Shop Now!",
-  "hashtags": ["#Brand", "#Social", "#Creative"],
-  "tone": "bold",
-  "colorPalette": ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"],
-  "fonts": ["Montserrat", "Lora", "Roboto"],
-  "layoutTips": ["Center text", "Add white space", "Bold typography"],
-  "designSuggestions": {
-    "visualStyle": "modern",
-    "elements": [
-      {"type": "text", "description": "Bold headline", "placement": "center"},
-      {"type": "shape", "description": "Circle", "placement": "top-right"},
-      {"type": "icon", "description": "Brand icon", "placement": "bottom-left"}
-    ]
-  },
-  "moodBoard": [
-    {"type": "color", "description": "Primary color", "color": "#FF0000"},
-    {"type": "icon", "description": "Minimalist icon"},
-    {"type": "image", "description": "Product image", "imageUrl": "https://images.unsplash.com/photo-123456"}
-  ],
-  "trends": [
-    {"hashtag": "#SocialMedia", "description": "Trending for engagement", "popularity": 80},
-    {"hashtag": "#Brand", "description": "Popular for promotions", "popularity": 70},
-    {"hashtag": "#Creative", "description": "Rising in design", "popularity": 60}
-  ],
-  "quickFixes": [
-    {"issue": "Cluttered layout", "suggestion": "Remove 2-3 elements", "action": "applyLayout"},
-    {"issue": "Low contrast", "suggestion": "Use darker text", "action": "applyColor"},
-    {"issue": "Weak CTA", "suggestion": "Add urgent CTA", "action": "applyText"}
-  ],
-  "accessibilitySuggestions": [
-    {"issue": "Low contrast", "suggestion": "Ensure text-background contrast meets WCAG 4.5:1"},
-    {"issue": "Small font", "suggestion": "Use font size ≥14px for readability"}
-  ],
-  "templateSuggestions": [
-    {"name": "Bold Promo", "description": "Vibrant layout for ads"},
-    {"name": "Minimal Flyer", "description": "Clean design for events"}
-  ],
-  "analyticsSuggestions": [
-    {"platform": "Instagram", "postingTime": "6 PM", "tip": "Post in evening for max engagement"},
-    {"platform": "Twitter", "postingTime": "12 PM", "tip": "Tweet at noon for visibility"}
-  ],
-  "freshIdeas": [
-    {"type": "text", "description": "Headline", "content": "Welcome to our brand!"},
-    {"type": "shape", "description": "Background shape"}
-  ],
-  "exportSuggestions": [
-    {"format": "PNG", "useCase": "Social Media", "tip": "Use PNG for transparent backgrounds"},
-    {"format": "PDF", "useCase": "Print", "tip": "Use PDF for high-quality prints"}
-  ],
-  "keywordSuggestions": [
-    {"keyword": "brand", "relevance": 90, "suggestion": "Use in headline for SEO"},
-    {"keyword": "creative", "relevance": 80, "suggestion": "Add to caption for engagement"}
-  ],
-  "multilingualContent": [
-    {"language": "English", "caption": "Engage your audience!", "cta": "Shop Now!"},
-    {"language": "Spanish", "caption": "¡Conecta con tu audiencia!", "cta": "¡Compra ahora!"},
-    {"language": "French", "caption": "Engagez votre public !", "cta": "Achetez maintenant !"}
-  ]
-}`;
-
-    const trends = await this.fetchTrends(prompt);
-    const images = await this.fetchUnsplashImages(prompt);
-    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
-      try {
-        console.log(`Attempt ${attempt}: Generating content...`);
-        
-        const completion = await this.groq.chat.completions.create({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.3,
-          max_tokens: 2000,
-          response_format: { type: "json_object" }
-        });
-
-        const content = completion.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error('Empty response from API');
-        }
-
-        const cleanContent = this.extractJSONFromResponse(content);
-        let parsedContent;
-        try {
-          parsedContent = JSON.parse(cleanContent);
-        } catch (parseError) {
-          console.error('JSON parse error:', parseError);
-          throw new Error(`Invalid JSON format: ${cleanContent.substring(0, 100)}...`);
-        }
-
-        const multilingualContent = [
-          { language: "English", caption: parsedContent.caption || "Engage your audience!", cta: parsedContent.cta || "Shop Now!" },
-          { language: "Spanish", caption: await this.fetchTranslation(parsedContent.caption || "Engage your audience!", "ES"), cta: await this.fetchTranslation(parsedContent.cta || "Shop Now!", "ES") },
-          { language: "French", caption: await this.fetchTranslation(parsedContent.caption || "Engage your audience!", "FR"), cta: await this.fetchTranslation(parsedContent.cta || "Shop Now!", "FR") },
-          { language: "Hindi", caption: await this.fetchTranslation(parsedContent.caption || "Engage your audience!", "HI"), cta: await this.fetchTranslation(parsedContent.cta || "Shop Now!", "HI") }
-        ];
-
-        const validatedContent = this.validateGeneratedContent(parsedContent, trends, images);
-        validatedContent.multilingualContent = multilingualContent;
-        return validatedContent;
-
-      } catch (error: any) {
-        console.error(`Attempt ${attempt} failed:`, error);
-        
-        if (error.response?.status === 429) {
-          const delay = this.baseDelay * Math.pow(2, attempt - 1);
-          console.warn(`Rate limited, retrying after ${delay}ms`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        
-        if (attempt === this.maxRetries) {
-          console.warn('All attempts failed, returning fallback content');
-          return this.getFallbackContent(prompt);
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    return this.getFallbackContent(prompt);
-  }
-
-  private getFallbackContent(prompt: string): GeneratedContent {
-    return {
-      caption: `Check out our ${prompt.split(' ').slice(0, 3).join(' ')}! ✨`,
-      cta: "Learn More!",
-      hashtags: ["#brand", "#content", "#social", "#marketing", "#creative"],
-      tone: "professional",
-      colorPalette: ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6"],
-      fonts: ["Montserrat", "Lora", "Roboto"],
-      layoutTips: [
-        "Center focal text for impact",
-        "Add white space for clarity",
-        "Use bold typography for emphasis"
-      ],
-      designSuggestions: {
-        visualStyle: "modern",
-        elements: [
-          { type: "text", description: "Bold headline", placement: "center" },
-          { type: "shape", description: "Decorative circle", placement: "top-right" },
-          { type: "icon", description: "Brand icon", placement: "bottom-left" }
-        ]
-      },
-      moodBoard: [
-        { type: "color", description: "Primary color", color: "#3B82F6" },
-        { type: "color", description: "Accent color", color: "#EF4444" },
-        { type: "image", description: "Inspirational image", imageUrl: "https://images.unsplash.com/photo-123456" }
-      ],
-      trends: [
-        { hashtag: "#SocialMedia", description: "Trending for engagement", popularity: 80 },
-        { hashtag: "#Brand", description: "Popular for promotions", popularity: 70 },
-        { hashtag: "#Creative", description: "Rising in design", popularity: 60 }
-      ],
-      quickFixes: [
-        { issue: "Cluttered layout", suggestion: "Remove 2-3 elements", action: "applyLayout" },
-        { issue: "Low contrast", suggestion: "Use darker text", action: "applyColor" }
-      ],
-      accessibilitySuggestions: [
-        { issue: "Low contrast", suggestion: "Ensure text-background contrast meets WCAG 4.5:1" },
-        { issue: "Small font", suggestion: "Use font size ≥14px for readability" }
-      ],
-      templateSuggestions: [
-        { name: "Bold Promo", description: "Vibrant layout for ads" },
-        { name: "Minimal Flyer", description: "Clean design for events" }
-      ],
-      analyticsSuggestions: [
-        { platform: "Instagram", postingTime: "6 PM", tip: "Post in evening for max engagement" },
-        { platform: "Twitter", postingTime: "12 PM", tip: "Tweet at noon for visibility" }
-      ],
-      freshIdeas: [
-        { type: "text", description: "Headline", content: "Welcome to our brand!" },
-        { type: "shape", description: "Background shape" }
-      ],
-      exportSuggestions: [
-        { format: "PNG", useCase: "Social Media", tip: "Use PNG for transparent backgrounds" },
-        { format: "PDF", useCase: "Print", tip: "Use PDF for high-quality prints" }
-      ],
-      keywordSuggestions: [
-        { keyword: "brand", relevance: 90, suggestion: "Use in headline for SEO" },
-        { keyword: "creative", relevance: 80, suggestion: "Add to caption for engagement" }
-      ],
-      multilingualContent: [
-        { language: "English", caption: "Engage your audience!", cta: "Shop Now!" },
-        { language: "Spanish", caption: "¡Conecta con tu audiencia!", cta: "¡Compra ahora!" },
-        { language: "French", caption: "Engagez votre public !", cta: "Achetez maintenant !" }
-      ]
-    };
+  private getFallbackTranslations(caption: string, cta: string): GeneratedContent['multilingualContent'] {
+    return [
+      { language: 'English', caption, cta },
+    ];
   }
 }
