@@ -6,13 +6,11 @@ import React, { Component, useState, useCallback } from "react";
 import { AddOnSDKAPI } from "https://new.express.adobe.com/static/add-on-sdk/sdk.js";
 
 import { GroqService, GeneratedContent } from "../services/api";
-// import { DesignService } from "../services/design";
 import Settings from "./Settings";
 import ContentGenerator from "./ContentGenerator";
-import LayoutSelector from "./LayoutSelector";
+import CreativeSparkPanel from "./CreativeSparkPanel";
 import "./App.css";
 
-// Toast notification component
 const Toast = ({ message, type, onClose }: { 
   message: string; 
   type: 'success' | 'error' | 'info'; 
@@ -54,7 +52,6 @@ const Toast = ({ message, type, onClose }: {
   </div>
 );
 
-// Error Boundary Component
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error?: string }> {
   state = { hasError: false, error: '' };
 
@@ -81,11 +78,9 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
   const [brandInfo, setBrandInfo] = useState(localStorage.getItem('brand_info') || '');
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isCreatingDesign, setIsCreatingDesign] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   const groqService = new GroqService(apiKey);
-  // const designService = new DesignService(addOnUISdk);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
@@ -114,27 +109,13 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
     }
   }, [apiKey, brandInfo]);
 
-  const handleCreateDesign = useCallback(async (layoutIndex: number) => {
-    if (!generatedContent) return;
-
-    setIsCreatingDesign(true);
-    try {
-      // Temporary: Just simulate design creation
-      console.log('Design would be created with layout:', layoutIndex, generatedContent);
-      showToast(`Design created with ${generatedContent.layoutSuggestions[layoutIndex]} layout!`, 'success');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-    } finally {
-      setIsCreatingDesign(false);
-    }
-  }, [generatedContent]);
-
   return (
     <ErrorBoundary>
       <Theme system="express" scale="medium" color="light">
         <div className="container">
           <header className="header">
-            <h1>🚀 InstaBrand AI</h1>
-            <p>AI-powered brand content creator</p>
+            <h1>🔥 CreativeSpark AI</h1>
+            <p>AI-powered design optimization</p>
           </header>
 
           <Settings
@@ -148,15 +129,12 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
           <ContentGenerator
             onGenerate={handleGenerateContent}
             isLoading={isGenerating}
-            // onToast={showToast}
           />
 
           {generatedContent && (
-            <LayoutSelector
-              layouts={generatedContent.layoutSuggestions}
+            <CreativeSparkPanel
               content={generatedContent}
-              onCreateDesign={handleCreateDesign}
-              isCreating={isCreatingDesign}
+              addOnUISdk={addOnUISdk}
               onToast={showToast}
             />
           )}
