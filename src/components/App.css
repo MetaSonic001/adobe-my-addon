@@ -6,6 +6,35 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.toast-success {
+  background-color: #10B981 !important;
+}
+
+.toast-error {
+  background-color: #EF4444 !important;
+}
+
+.toast-info {
+  background-color: #3B82F6 !important;
+}
+
 /* Add to existing App.css */
 .error-message {
   background: #f8d7da;

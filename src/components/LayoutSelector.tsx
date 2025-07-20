@@ -8,13 +8,15 @@ interface LayoutSelectorProps {
   content: GeneratedContent;
   onCreateDesign: (layoutIndex: number) => Promise<void>;
   isCreating: boolean;
+  onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const LayoutSelector: React.FC<LayoutSelectorProps> = ({ 
   layouts, 
   content,
   onCreateDesign, 
-  isCreating 
+  isCreating,
+  onToast 
 }) => {
   const [selectedLayout, setSelectedLayout] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -31,14 +33,31 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
     }
   };
 
-  const copyCaption = () => {
-    navigator.clipboard.writeText(content.caption);
-    alert('Caption copied to clipboard!');
+  const copyCaption = async () => {
+    try {
+      await navigator.clipboard.writeText(content.caption);
+      onToast('Caption copied to clipboard!', 'success');
+    } catch (error) {
+      onToast('Failed to copy caption', 'error');
+    }
   };
 
-  const copyHashtags = () => {
-    navigator.clipboard.writeText(content.hashtags.join(' '));
-    alert('Hashtags copied to clipboard!');
+  const copyHashtags = async () => {
+    try {
+      await navigator.clipboard.writeText(content.hashtags.join(' '));
+      onToast('Hashtags copied to clipboard!', 'success');
+    } catch (error) {
+      onToast('Failed to copy hashtags', 'error');
+    }
+  };
+
+  const copyColor = async (color: string) => {
+    try {
+      await navigator.clipboard.writeText(color);
+      onToast(`Color ${color} copied!`, 'success');
+    } catch (error) {
+      onToast('Failed to copy color', 'error');
+    }
   };
 
   if (layouts.length === 0) {
@@ -353,10 +372,7 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
                     position: 'relative'
                   }} 
                   title={color}
-                  onClick={() => {
-                    navigator.clipboard.writeText(color);
-                    alert(`Color ${color} copied!`);
-                  }}
+                  onClick={() => copyColor(color)}
                   />
                 ))}
               </div>

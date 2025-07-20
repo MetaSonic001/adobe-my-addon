@@ -12,6 +12,48 @@ import ContentGenerator from "./ContentGenerator";
 import LayoutSelector from "./LayoutSelector";
 import "./App.css";
 
+// Toast notification component
+const Toast = ({ message, type, onClose }: { 
+  message: string; 
+  type: 'success' | 'error' | 'info'; 
+  onClose: () => void;
+}) => (
+  <div 
+    className={`toast toast-${type}`}
+    style={{
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      backgroundColor: type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#3B82F6',
+      color: 'white',
+      padding: '12px 16px',
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      zIndex: 1000,
+      maxWidth: '300px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      animation: 'slideIn 0.3s ease-out'
+    }}
+  >
+    <span>{message}</span>
+    <button 
+      onClick={onClose}
+      style={{
+        background: 'none',
+        border: 'none',
+        color: 'white',
+        cursor: 'pointer',
+        fontSize: '16px',
+        marginLeft: '8px'
+      }}
+    >
+      ×
+    </button>
+  </div>
+);
+
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error?: string }> {
   state = { hasError: false, error: '' };
@@ -40,13 +82,20 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreatingDesign, setIsCreatingDesign] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   const groqService = new GroqService(apiKey);
   // const designService = new DesignService(addOnUISdk);
 
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleSaveSettings = useCallback(() => {
     localStorage.setItem('groq_api_key', apiKey);
     localStorage.setItem('brand_info', brandInfo);
+    showToast('Settings saved successfully!', 'success');
   }, [apiKey, brandInfo]);
 
   const handleGenerateContent = useCallback(async (prompt: string): Promise<GeneratedContent> => {
@@ -58,6 +107,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
     try {
       const content = await groqService.generateContent(prompt, brandInfo);
       setGeneratedContent(content);
+      showToast('Content generated successfully!', 'success');
       return content;
     } finally {
       setIsGenerating(false);
@@ -71,7 +121,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
     try {
       // Temporary: Just simulate design creation
       console.log('Design would be created with layout:', layoutIndex, generatedContent);
-      alert(`Design created with ${generatedContent.layoutSuggestions[layoutIndex]} layout!`);
+      showToast(`Design created with ${generatedContent.layoutSuggestions[layoutIndex]} layout!`, 'success');
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     } finally {
       setIsCreatingDesign(false);
@@ -98,6 +148,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
           <ContentGenerator
             onGenerate={handleGenerateContent}
             isLoading={isGenerating}
+            // onToast={showToast}
           />
 
           {generatedContent && (
@@ -106,6 +157,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
               content={generatedContent}
               onCreateDesign={handleCreateDesign}
               isCreating={isCreatingDesign}
+              onToast={showToast}
             />
           )}
 
@@ -113,6 +165,14 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
             <div className="warning">
               ⚠️ Set your Groq API key to get started
             </div>
+          )}
+
+          {toast && (
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast(null)}
+            />
           )}
         </div>
       </Theme>
