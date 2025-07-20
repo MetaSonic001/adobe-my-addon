@@ -1,0 +1,25 @@
+{
+    "testId": "75e1de03-ece5-4e65-970b-792f227c28e7",
+    "name": "InstaBrand AI",
+    "version": "1.0.0",
+    "manifestVersion": 2,
+    "requirements": {
+        "apps": [
+            {
+                "name": "Express",
+                "apiVersion": 1
+            }
+        ]
+    },
+    "entryPoints": [
+        {
+            "type": "panel",
+            "id": "panel1",
+            "main": "index.html"
+        }
+    ],
+    "uiEntry": {
+        "type": "panel",
+        "id": "panel1"
+    }
+}
