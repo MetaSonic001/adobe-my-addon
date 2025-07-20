@@ -6,7 +6,7 @@ import React, { Component, useState, useCallback } from "react";
 import { AddOnSDKAPI } from "https://new.express.adobe.com/static/add-on-sdk/sdk.js";
 
 import { GroqService, GeneratedContent } from "../services/api";
-import { DesignService } from "../services/design";
+// import { DesignService } from "../services/design";
 import Settings from "./Settings";
 import ContentGenerator from "./ContentGenerator";
 import LayoutSelector from "./LayoutSelector";
@@ -42,7 +42,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
   const [isCreatingDesign, setIsCreatingDesign] = useState(false);
   
   const groqService = new GroqService(apiKey);
-  const designService = new DesignService(addOnUISdk);
+  // const designService = new DesignService(addOnUISdk);
 
   const handleSaveSettings = useCallback(() => {
     localStorage.setItem('groq_api_key', apiKey);
@@ -69,7 +69,10 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
 
     setIsCreatingDesign(true);
     try {
-      await designService.createDesign(generatedContent, layoutIndex);
+      // Temporary: Just simulate design creation
+      console.log('Design would be created with layout:', layoutIndex, generatedContent);
+      alert(`Design created with ${generatedContent.layoutSuggestions[layoutIndex]} layout!`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     } finally {
       setIsCreatingDesign(false);
     }
@@ -100,6 +103,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
           {generatedContent && (
             <LayoutSelector
               layouts={generatedContent.layoutSuggestions}
+              content={generatedContent}
               onCreateDesign={handleCreateDesign}
               isCreating={isCreatingDesign}
             />
