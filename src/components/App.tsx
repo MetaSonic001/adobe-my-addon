@@ -83,7 +83,7 @@ const App = ({ addOnUISdk }: { addOnUISdk: AddOnSDKAPI }) => {
       <Theme system="express" scale="medium" color="light">
         <div className="container">
           <header className="header">
-            <h1>🚀 InstaBrand AI</h1>
+            <h1>🚀 InstaBrand AIs</h1>
             <p>AI-powered brand content creator</p>
           </header>
 
