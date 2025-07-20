@@ -1,11 +1,11 @@
 import { AddOnSDKAPI } from "https://new.express.adobe.com/static/add-on-sdk/sdk.js";
 
 export interface GeneratedContent {
-  brandInfo?: string[];
   caption: string;
   colorPalette: string[];
   fonts: string[];
   layoutSuggestions: string[];
+  brandInfo?: string; // Add this line to support optional brandInfo property
 }
 
 export class DesignService {

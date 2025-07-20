@@ -1,3 +1,5 @@
+import Groq from "groq-sdk";
+
 export interface GeneratedContent {
   caption: string;
   hashtags: string[];
@@ -8,12 +10,16 @@ export interface GeneratedContent {
 }
 
 export class GroqService {
-  private apiKey: string;
+  private groq: Groq;
   private maxRetries = 3;
-  private baseDelay = 1000;
+  private baseDelay = 1000; // 1 second
 
   constructor(apiKey: string) {
-    this.apiKey = apiKey;
+    console.warn(
+      'WARNING: Using dangerouslyAllowBrowser in a browser environment. ' +
+      'This exposes your API key. Use a proxy server for production.'
+    );
+    this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
   }
 
   async generateContent(prompt: string, brandInfo?: string): Promise<GeneratedContent> {
@@ -39,57 +45,50 @@ export class GroqService {
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const response = await fetch('https://api.grok.xai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'llama-3.1-70b-versatile',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: prompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000
-          })
+        const completion = await this.groq.chat.completions.create({
+          model: "llama-3.1-8b-instant",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000
         });
 
-        if (response.status === 429) {
+        const content = completion.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error('Invalid API response format');
+        }
+
+        const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+        const parsedContent = JSON.parse(cleanContent);
+
+        // Validate response structure
+        if (
+          !parsedContent.caption ||
+          !Array.isArray(parsedContent.hashtags) ||
+          !parsedContent.tone ||
+          !Array.isArray(parsedContent.colorPalette) ||
+          !Array.isArray(parsedContent.fonts) ||
+          !Array.isArray(parsedContent.layoutSuggestions)
+        ) {
+          throw new Error('Invalid content structure in API response');
+        }
+
+        return parsedContent;
+      } catch (error: any) {
+        if (error.response?.status === 429) {
           const delay = this.baseDelay * Math.pow(2, attempt - 1);
           console.warn(`429 error, retrying after ${delay}ms (attempt ${attempt})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
-
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
-        }
-
-        const data = await response.json();
-        if (!data.choices?.[0]?.message?.content) {
-          throw new Error('Invalid API response format');
-        }
-
-        const content = data.choices[0].message.content;
-        const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
-        const parsedContent = JSON.parse(cleanContent);
-
-        // Validate response structure
-        if (!parsedContent.caption || !Array.isArray(parsedContent.hashtags) || !parsedContent.tone ||
-            !Array.isArray(parsedContent.colorPalette) || !Array.isArray(parsedContent.fonts) ||
-            !Array.isArray(parsedContent.layoutSuggestions)) {
-          throw new Error('Invalid content structure in API response');
-        }
-
-        return parsedContent;
-      } catch (error) {
         console.error(`Attempt ${attempt} failed:`, error);
         if (attempt === this.maxRetries) {
           throw new Error(`Failed to generate content after ${this.maxRetries} attempts: ${error.message}`);
         }
       }
     }
+    throw new Error('Unexpected error: retries exhausted');
   }
 }
