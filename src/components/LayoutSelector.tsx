@@ -106,81 +106,166 @@ const LayoutSelector: React.FC<LayoutSelectorProps> = ({
           overflow: 'hidden',
           background: 'white'
         }}>
-          {/* Mock Instagram Post Preview */}
+          {/* Instagram Post Preview */}
           <div style={{
             width: '100%',
             aspectRatio: '1/1',
-            background: `linear-gradient(135deg, ${content.colorPalette[0]}, ${content.colorPalette[1]})`,
+            background: `linear-gradient(135deg, ${content.colorPalette[0]} 0%, ${content.colorPalette[1]} 50%, ${content.colorPalette[2]} 100%)`,
             position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '20px',
-            textAlign: 'center'
+            overflow: 'hidden'
           }}>
-            {/* Main Caption */}
-            <h2 style={{
-              color: content.colorPalette[4] || '#ffffff',
-              fontFamily: content.fonts[0],
-              fontSize: '18px',
-              fontWeight: 'bold',
-              margin: '0 0 15px 0',
-              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              lineHeight: '1.3'
-            }}>
-              {content.caption.replace(/#\w+/g, '').trim()}
-            </h2>
-
-            {/* Decorative Element based on layout */}
-            {selectedLayout === 0 && (
-              <div style={{
-                width: '60px',
-                height: '4px',
-                backgroundColor: content.colorPalette[2],
-                borderRadius: '2px',
-                marginBottom: '10px'
-              }} />
-            )}
+            {/* Background Pattern */}
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-50%',
+              width: '200%',
+              height: '200%',
+              background: `radial-gradient(circle, ${content.colorPalette[3]}20 1px, transparent 1px)`,
+              backgroundSize: '30px 30px',
+              opacity: 0.6
+            }} />
             
-            {selectedLayout === 1 && (
-              <div style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: content.colorPalette[3],
-                borderRadius: '50%',
-                position: 'absolute',
-                top: '15px',
-                right: '15px',
-                opacity: 0.8
-              }} />
-            )}
+            {/* Floating Elements */}
+            <div style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              width: '80px',
+              height: '80px',
+              background: `linear-gradient(45deg, ${content.colorPalette[3]}, ${content.colorPalette[4]})`,
+              borderRadius: selectedLayout === 1 ? '50%' : '20px',
+              opacity: 0.8,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+            }} />
+            
+            <div style={{
+              position: 'absolute',
+              bottom: '30px',
+              left: '20px',
+              width: '60px',
+              height: '60px',
+              background: content.colorPalette[2],
+              borderRadius: selectedLayout === 2 ? '0' : '50%',
+              opacity: 0.9,
+              transform: 'rotate(45deg)'
+            }} />
 
-            {selectedLayout === 2 && (
-              <div style={{
-                width: '20px',
-                height: '80px',
-                backgroundColor: content.colorPalette[4],
-                position: 'absolute',
-                top: '15px',
-                right: '15px',
-                opacity: 0.7,
-                borderRadius: '10px'
-              }} />
-            )}
-
-            {/* Tone indicator */}
-            <span style={{
-              background: content.colorPalette[3],
-              color: 'white',
-              padding: '4px 12px',
-              borderRadius: '15px',
-              fontSize: '12px',
-              textTransform: 'capitalize',
-              marginTop: 'auto'
+            {/* Main Content Container */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '90%',
+              textAlign: 'center',
+              zIndex: 2
             }}>
-              {content.tone} Style
-            </span>
+              {/* Sale Badge */}
+              <div style={{
+                display: 'inline-block',
+                background: 'rgba(255,255,255,0.95)',
+                backdropFilter: 'blur(10px)',
+                padding: '8px 20px',
+                borderRadius: '25px',
+                marginBottom: '20px',
+                border: `2px solid ${content.colorPalette[4]}`,
+                boxShadow: '0 5px 20px rgba(0,0,0,0.1)'
+              }}>
+                <span style={{
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  background: `linear-gradient(45deg, ${content.colorPalette[0]}, ${content.colorPalette[3]})`,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}>
+                  UP TO 50% OFF
+                </span>
+              </div>
+
+              {/* Main Text */}
+              <h1 style={{
+                color: 'rgba(255,255,255,0.95)',
+                fontFamily: content.fonts[0],
+                fontSize: '20px',
+                fontWeight: 'bold',
+                margin: '0 0 15px 0',
+                textShadow: '0 3px 10px rgba(0,0,0,0.3)',
+                lineHeight: '1.2',
+                background: 'rgba(0,0,0,0.1)',
+                backdropFilter: 'blur(5px)',
+                padding: '15px 20px',
+                borderRadius: '15px',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                {content.caption.replace(/#\w+/g, '').replace(/up to \d+% off/i, '').trim()}
+              </h1>
+
+              {/* CTA Button */}
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: `linear-gradient(45deg, ${content.colorPalette[3]}, ${content.colorPalette[4]})`,
+                color: 'white',
+                padding: '12px 25px',
+                borderRadius: '30px',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                border: '2px solid rgba(255,255,255,0.2)',
+                cursor: 'pointer'
+              }}>
+                <span>SHOP NOW</span>
+                <div style={{
+                  width: '0',
+                  height: '0',
+                  borderLeft: '6px solid white',
+                  borderTop: '4px solid transparent',
+                  borderBottom: '4px solid transparent'
+                }} />
+              </div>
+            </div>
+
+            {/* Corner Accent */}
+            <div style={{
+              position: 'absolute',
+              top: '0',
+              left: '0',
+              width: '100px',
+              height: '100px',
+              background: `linear-gradient(135deg, ${content.colorPalette[4]}, transparent)`,
+              clipPath: 'polygon(0 0, 100% 0, 0 100%)'
+            }} />
+
+            {/* Bottom Wave */}
+            <div style={{
+              position: 'absolute',
+              bottom: '0',
+              left: '0',
+              width: '100%',
+              height: '80px',
+              background: `linear-gradient(to top, ${content.colorPalette[1]}80, transparent)`,
+              clipPath: 'polygon(0 100%, 100% 100%, 100% 20%, 0 60%)'
+            }} />
+
+            {/* Tone Badge */}
+            <div style={{
+              position: 'absolute',
+              bottom: '15px',
+              right: '15px',
+              background: 'rgba(255,255,255,0.9)',
+              color: content.colorPalette[0],
+              padding: '5px 12px',
+              borderRadius: '15px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              {content.tone}
+            </div>
           </div>
 
           {/* Content Tools */}
